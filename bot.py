@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import logging
 
@@ -45,7 +45,7 @@ def track_ban(user_id, username, guild_id, channel_id, reason):
         guild_id,
         channel_id,
         reason,
-        datetime.utcnow().isoformat()
+        datetime.now(timezone.utc).isoformat()
     ))
     conn.commit()
     conn.close()
