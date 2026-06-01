@@ -13,8 +13,10 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-TARGET_CHANNEL_ID = 1496565527554822254
-
+TARGET_CHANNEL_IDS = {
+    1496565527554822254,
+    1510983249487462530
+}
 
 def init_ban_db():
     conn = sqlite3.connect("ban_tracker.db")
@@ -65,7 +67,7 @@ async def on_message(message):
     if not message.guild:
         return
 
-    if message.channel.id == TARGET_CHANNEL_ID:
+    if message.channel.id in TARGET_CHANNEL_IDS:
         print("TARGET CHANNEL HIT")
 
         me = message.guild.me or message.guild.get_member(bot.user.id)
