@@ -1,4 +1,4 @@
-import discord
+=import discord
 from discord.ext import commands
 import sqlite3
 from datetime import datetime, timezone
@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
+intents.guilds = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -55,7 +56,7 @@ def track_ban(user_id, username, guild_id, channel_id, reason):
 
 @bot.event
 async def on_ready():
-    print(f"BOT ONLINE AS {bot.user}")
+    logging.info(f"BOT ONLINE AS {bot.user}")
     init_ban_db()
 
 @bot.event
@@ -63,43 +64,64 @@ async def on_message(message):
     if message.author.bot:
         return
 
-    print(f"MESSAGE SEEN: guild={getattr(message.guild, 'id', None)} channel={message.channel.id} author={message.author}")
-
-    if not message.guild:
+    if message.guild is None:
         return
 
-    if message.channel.id in TARGET_CHANNEL_IDS:
-        print("TARGET CHANNEL HIT")
+    logging.info(
+        f"MESSAGE SEEN guild={message.guild.id} channel={message.channel.id} "
+        f"author={message.author} content={message.content!r}"
+    )
 
-        me = message.guild.me or message.guild.get_member(bot.user.id)
-        if me is None:
-            print("BAN FAILED: bot member object not found")
-            return
+    if message.channel.id not in TARGET_CHANNEL_IDS:
+        return
 
-        print(f"BOT top role: {me.top_role} ({me.top_role.position})")
-        print(f"USER top role: {message.author.top_role} ({message.author.top_role.position})")
-        print(f"BOT ban_members: {me.guild_permissions.ban_members}")
-        print(f"BOT administrator: {me.guild_permissions.administrator}")
+    logging.info("TARGET CHANNEL HIT")
 
-        try:
-            await message.guild.ban(message.author, reason="Spam channel rule")
-            print(f"BANNED: {message.author}")
+    me = message.guild.me or message.guild.get_member(bot.user.id)
+    if me is None:
+        logging.error("BAN FAILED: bot member object not found")
+        return
 
-            track_ban(
-                user_id=message.author.id,
-                username=str(message.author),
-                guild_id=message.guild.id,
-                channel_id=message.channel.id,
-                reason="Spam channel rule"
-            )
+    logging.info(f"BOT top role: {me.top_role} ({me.top_role.position})")
+    logging.info(f"USER top role: {message.author.top_role} ({message.author.top_role.position})")
+    logging.info(f"BOT ban_members: {me.guild_permissions.ban_members}")
+    logging.info(f"BOT administrator: {me.guild_permissions.administrator}")
+    logging.info(f"BOT role higher than user: {me.top_role > message.author.top_role}")
+    logging.info(f"IS GUILD OWNER: {message.author.id == message.guild.owner_id}")
 
-        except discord.Forbidden as e:
-            print(f"BAN FAILED: Forbidden: {e}")
-        except discord.HTTPException as e:
-            print(f"BAN FAILED: HTTPException: {e.status} {e.text}")
-        except Exception as e:
-            print(f"BAN FAILED: {type(e).__name__}: {e}")
+    if message.author.id == message.guild.owner_id:
+        logging.error("BAN FAILED: target is server owner")
+        return
+
+    if me.top_role <= message.author.top_role:
+        logging.error("BAN FAILED: bot role is not above target role")
+        return
+
+    if not me.guild_permissions.ban_members and not me.guild_permissions.administrator:
+        logging.error("BAN FAILED: bot lacks ban_members permission")
+        return
+
+    try:
+        await message.author.ban(reason="Spam channel rule")
+        logging.info(f"BANNED: {message.author}")
+
+        track_ban(
+            user_id=message.author.id,
+            username=str(message.author),
+            guild_id=message.guild.id,
+            channel_id=message.channel.id,
+            reason="Spam channel rule"
+        )
+
+    except discord.Forbidden as e:
+        logging.error(f"BAN FAILED: Forbidden: {e}")
+    except discord.HTTPException as e:
+        logging.error(f"BAN FAILED: HTTPException: {e.status} {e.text}")
+    except Exception as e:
+        logging.error(f"BAN FAILED: {type(e).__name__}: {e}")
 
     await bot.process_commands(message)
 
-bot.run(os.getenv("DISCORD_TOKEN"))
+token = os.environ["DISCORD_TOKEN"]
+bot.run(token)
+Important note
