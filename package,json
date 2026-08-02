@@ -1,6 +1,7 @@
 {
   "name": "sentinel-bot",
   "version": "1.0.0",
+  "description": "Discord auto-ban bot",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
