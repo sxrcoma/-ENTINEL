@@ -15,7 +15,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 TARGET_CHANNEL_IDS = {
     1496565527554822254,
-    1510983249487462530
+    1510983249487462530,
+    1533607231621435626
 }
 
 def init_ban_db():
